@@ -6,6 +6,11 @@
 echo "🏔️  Starting Sun Valley React App Servers"
 echo "========================================"
 
+# Set default host and ports if not already set
+export HOST=${HOST:-localhost}
+export PORT=${PORT:-3002}
+export FRONTEND_PORT=${FRONTEND_PORT:-3000}
+
 # Check if we're in the right directory
 if [ ! -f "package.json" ]; then
     echo "❌ Error: package.json not found. Please run this script from the sun-valley-react directory."
@@ -71,8 +76,8 @@ fi
 echo "   ✅ Frontend server started (PID: $FRONTEND_PID)"
 echo ""
 echo "🎉 Both servers are running!"
-echo "   📱 Frontend: http://localhost:3000"
-echo "   🔧 Backend:  http://localhost:3002"
+echo "   📱 Frontend: http://$HOST:$FRONTEND_PORT"
+echo "   🔧 Backend:  http://$HOST:$PORT"
 echo ""
 echo "Press Ctrl+C to stop both servers"
 

@@ -17,7 +17,7 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
+    "express": "^4.21.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-scripts": "5.0.1",
@@ -32,7 +32,9 @@
     "eject": "react-scripts eject",
     "server": "node server.js",
     "dev": "concurrently \"npm run server\" \"npm start\"",
-    "start-all": "./start-servers.sh"
+    "start-all": "./start-servers.sh",
+    "build-and-serve": "npm run build && node server.js",
+    "production": "npm run build && node server.js"
   },
   "eslintConfig": {
     "extends": [

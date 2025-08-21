@@ -20,6 +20,30 @@ npm start
 
 Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## ⚙️ Environment Configuration
+
+The application supports dynamic host configuration through environment variables:
+
+### Backend (server.js)
+- `HOST`: Server host (default: `localhost`)
+- `PORT`: Backend server port (default: `3002`)
+
+### Frontend (React app)
+- `REACT_APP_API_URL`: Full API base URL (e.g., `http://myserver:3002`)
+- `REACT_APP_API_PORT`: API port when constructing dynamic URLs (default: `3002`)
+
+### Examples
+```bash
+# Development with custom host
+HOST=0.0.0.0 PORT=8080 ./start-servers.sh
+
+# Production build with custom API URL
+REACT_APP_API_URL=https://api.mycompany.com npm run build
+
+# Docker deployment
+docker run -e HOST=0.0.0.0 -e PORT=3002 -p 3002:3002 sun-valley-app
+```
+
 ## ✨ Features
 
 ### 🏔️ **Sun Valley Contact Management**

@@ -5,6 +5,11 @@ REM This script starts both the Express backend server and React frontend develo
 echo 🏔️  Starting Sun Valley React App Servers
 echo ========================================
 
+REM Set default host and ports if not already set
+if not defined HOST set HOST=localhost
+if not defined PORT set PORT=3002
+if not defined FRONTEND_PORT set FRONTEND_PORT=3000
+
 REM Check if we're in the right directory
 if not exist "package.json" (
     echo ❌ Error: package.json not found. Please run this script from the sun-valley-react directory.
@@ -29,8 +34,8 @@ start "Frontend Server" cmd /k "npm start"
 
 echo.
 echo 🎉 Both servers are starting!
-echo    📱 Frontend: http://localhost:3000
-echo    🔧 Backend:  http://localhost:3002
+echo    📱 Frontend: http://%HOST%:%FRONTEND_PORT%
+echo    🔧 Backend:  http://%HOST%:%PORT%
 echo.
 echo Press any key to close this window...
 echo (The servers will continue running in separate windows)
