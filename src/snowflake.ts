@@ -1,25 +1,3 @@
-// Helper function to get the API base URL
-const getApiBaseUrl = (): string => {
-  // Check for environment variable first (for build-time configuration)
-  const envApiUrl = process.env.REACT_APP_API_URL;
-  if (envApiUrl) {
-    return envApiUrl;
-  }
-
-  // If running in development, use the configured ports
-  if (process.env.NODE_ENV === 'development') {
-    const host = window.location.hostname;
-    const port = process.env.REACT_APP_API_PORT || '3002';
-    return `http://${host}:${port}`;
-  }
-
-  // In production, assume API is served from the same host with a different port or path
-  const host = window.location.hostname;
-  const protocol = window.location.protocol;
-  
-  return `${protocol}//${host}`;
-};
-
 export interface ApiResponse {
   success: boolean;
   databases?: string[];
@@ -63,7 +41,7 @@ export const connectAndListDatabases = async (): Promise<ApiResponse> => {
   try {
     console.log('Connecting to Snowflake using my_conn configuration...');
     
-    const response = await fetch(`${getApiBaseUrl()}/api/connect`);
+    const response = await fetch('http://localhost:3002/api/connect');
     const data: ApiResponse = await response.json();
     
     if (response.ok && data.success) {
@@ -88,7 +66,7 @@ export const getSunValleyTables = async (): Promise<TablesResponse> => {
   try {
     console.log('Getting Sun Valley tables...');
     
-    const response = await fetch(`${getApiBaseUrl()}/api/sun-valley/tables`);
+    const response = await fetch('http://localhost:3002/api/sun-valley/tables');
     const data: TablesResponse = await response.json();
     
     if (response.ok && data.success) {
@@ -112,7 +90,7 @@ export const getTableData = async (tableName: string, limit: number = 10): Promi
   try {
     console.log(`Getting data for table ${tableName}...`);
     
-    const response = await fetch(`${getApiBaseUrl()}/api/sun-valley/table/${tableName}?limit=${limit}`);
+    const response = await fetch(`http://localhost:3002/api/sun-valley/table/${tableName}?limit=${limit}`);
     const data: TableDataResponse = await response.json();
     
     if (response.ok && data.success) {
@@ -162,7 +140,7 @@ export const getSunValleyStatusSummary = async (): Promise<StatusSummaryResponse
   try {
     console.log('Getting Sun Valley status summary...');
     
-    const response = await fetch(`${getApiBaseUrl()}/api/sun-valley/status-summary`);
+    const response = await fetch('http://localhost:3002/api/sun-valley/status-summary');
     const data: StatusSummaryResponse = await response.json();
     
     if (response.ok && data.success) {
@@ -186,7 +164,7 @@ export const getSunValleyDetailedData = async (): Promise<DetailedDataResponse> 
   try {
     console.log('Getting Sun Valley detailed data...');
     
-    const response = await fetch(`${getApiBaseUrl()}/api/sun-valley/detailed-data`);
+    const response = await fetch('http://localhost:3002/api/sun-valley/detailed-data');
     const data: DetailedDataResponse = await response.json();
     
     if (response.ok && data.success) {
@@ -214,7 +192,7 @@ export const updateSunValleyStatus = async (
   try {
     console.log(`Updating status for ${personName} to ${newStatus}...`);
     
-    const response = await fetch(`${getApiBaseUrl()}/api/sun-valley/update-status`, {
+    const response = await fetch('http://localhost:3002/api/sun-valley/update-status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

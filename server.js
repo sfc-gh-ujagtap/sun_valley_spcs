@@ -5,58 +5,10 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3002;
-const HOST = process.env.HOST || 'localhost';
+const PORT = 3002;
 
 app.use(cors());
 app.use(express.json());
-
-function isRunningInSnowflakeContainer() {
-  return fs.existsSync("/snowflake/session/token");
-}
-
-function getEnvConnectionOptions() {
-  // Check if running inside Snowpark Container Services
-  if (isRunningInSnowflakeContainer()) {
-    return {
-      accessUrl: "https://" + (process.env.SNOWFLAKE_HOST || ''),
-      account: process.env.SNOWFLAKE_ACCOUNT || '',
-      authenticator: 'OAUTH',
-      token: fs.readFileSync('/snowflake/session/token', 'ascii'),
-      warehouse: process.env.SNOWFLAKE_WAREHOUSE || 'SUN_VALLEY_WAREHOUSE',
-      database: process.env.SNOWFLAKE_DATABASE,
-      schema: process.env.SNOWFLAKE_SCHEMA,
-      clientSessionKeepAlive: true,
-    };
-  } else {
-    // Running locally - use environment variables for credentials
-    return {
-      account: process.env.SNOWFLAKE_ACCOUNT || '',
-      username: process.env.SNOWFLAKE_USER,
-      password: process.env.SNOWFLAKE_PASSWORD,
-      warehouse: process.env.SNOWFLAKE_WAREHOUSE || 'SUN_VALLEY_WAREHOUSE',
-      database: process.env.SNOWFLAKE_DATABASE,
-      schema: process.env.SNOWFLAKE_SCHEMA,
-      clientSessionKeepAlive: true,
-    };
-  }
-}
-
-async function connectToSnowflakeFromEnv() {
-  const connection = snowflake.createConnection(getEnvConnectionOptions());
-  await new Promise((resolve, reject) => {
-    connection.connect((err, conn) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(conn);
-      }
-    });
-  });
-  return connection;
-}
-
-
 
 // Function to read snowsql config (similar to Python version)
 function readSnowsqlConfig(configPath = '~/.snowsql/config') {
@@ -107,7 +59,7 @@ function loadPrivateKey(privateKeyPath) {
 }
 
 // Connect to Snowflake using my_conn configuration
-async function connectToSnowflakeFromConfig(connectionName = 'my_conn') {
+async function connectToSnowflake(connectionName = 'my_conn') {
   try {
     console.log(`Connecting to Snowflake using ${connectionName}...`);
     
@@ -186,15 +138,6 @@ async function connectToSnowflakeFromConfig(connectionName = 'my_conn') {
   } catch (error) {
     console.error('❌ Error connecting to Snowflake:', error);
     throw error;
-  }
-}
-
-
-async function connectToSnowflake(connectionName = 'my_conn') {
-  if (isRunningInSnowflakeContainer()) {
-    return await connectToSnowflakeFromEnv();
-  } else {
-    return await connectToSnowflakeFromConfig(connectionName);
   }
 }
 
@@ -456,23 +399,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
-
-const frontendDistPath = path.join(__dirname, 'build');
-console.log(frontendDistPath);
-// Serve static files from the React app build directory
-app.use(express.static(frontendDistPath));
-
-// Catch all handler: send back React's index.html file for client-side routing
-app.get('*', (req, res) => {
-   // Don't serve index.html for API routes
-   if (req.path.startsWith('/api')) {
-     return res.status(404).json({ error: 'API endpoint not found' });
-   }
-   
-   res.sendFile(path.join(frontendDistPath, 'index.html'));
- });
-
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
-  console.log(`📡 API available at http://${HOST}:${PORT}/api/connect`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📡 API available at http://localhost:${PORT}/api/connect`);
 });
