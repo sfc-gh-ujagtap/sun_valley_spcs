@@ -21,3 +21,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Snowflake CLI configuration (contains sensitive credentials)
+~/Library/Application Support/snowflake/config.toml
