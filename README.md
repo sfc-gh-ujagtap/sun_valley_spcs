@@ -169,16 +169,68 @@ snowsql -f create_service.sql  # Create service only
 
 #### 4. Monitor Deployment
 
+**Important**: Wait for the service to be fully ready before accessing it.
+
 ```bash
-# Check service status
+# 1. Check service status (repeat until READY)
 snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
 
-# Get the service endpoint URL
+# 2. Once status shows "READY", get the service endpoint URL
 snowsql -q "SHOW ENDPOINTS IN SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE;"
 
-# View service logs
+# 3. Test the health endpoint first
+# curl https://your-service-url.snowflakecomputing.app/api/health
+
+# 4. Access the full application
+# https://your-service-url.snowflakecomputing.app
+
+# 5. View service logs if needed
 snowsql -f manage_service.sql
 ```
+
+#### Service Status Interpretation
+
+The service status will progress through these states:
+
+| Status | Description | Action |
+|--------|-------------|---------|
+| `PENDING` | Service is being created | Wait - service is starting up |
+| `STARTING` | Container is initializing | Wait - application is loading |
+| `READY` | ✅ **Service is accessible** | Safe to access endpoints |
+| `FAILED` | Service failed to start | Check logs and troubleshoot |
+
+**Example of ready service status:**
+```json
+[{"status": "READY"}]
+```
+
+#### Accessing Your Service
+
+Once the status shows `READY`:
+
+1. **Get your service URL:**
+   ```bash
+   snowsql -q "SHOW ENDPOINTS IN SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE;"
+   ```
+
+2. **Test health endpoint first:**
+   ```bash
+   curl https://YOUR-SERVICE-URL.snowflakecomputing.app/api/health
+   # Should return: {"status": "OK", "timestamp": "..."}
+   ```
+
+3. **Access the full application:**
+   - Open `https://YOUR-SERVICE-URL.snowflakecomputing.app` in your browser
+   - The React app should load with the Sun Valley contact management interface
+
+4. **If the service doesn't respond:**
+   ```bash
+   # Check detailed logs
+   snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 50);"
+   
+   # Verify service is running
+   snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
+   ```
 
 ### SPCS Service Configuration
 
@@ -411,6 +463,17 @@ snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_S
 
 # Check container status
 snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
+```
+
+**Problem**: Service takes too long to start
+```bash
+# Normal startup times:
+# - PENDING: 0-30 seconds (service creation)
+# - STARTING: 30-120 seconds (container initialization)
+# - READY: Service is accessible
+
+# If stuck in STARTING for >5 minutes, check logs:
+snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 100);"
 ```
 
 #### Service Access Issues
