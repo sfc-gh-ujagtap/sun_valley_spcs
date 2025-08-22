@@ -167,70 +167,41 @@ snowsql -f create_service.sql  # Create service only
 
 **Note**: `buildAndUpload.sh` and `deploy.sql` both handle repository setup, so running both creates redundancy but is safe due to `IF NOT EXISTS` clauses.
 
-#### 4. Monitor Deployment
+#### 4. Monitor & Access Service
 
-**Important**: Wait for the service to be fully ready before accessing it.
+**Complete workflow from deployment to access:**
 
 ```bash
-# 1. Check service status (repeat until READY)
+# Step 1: Monitor deployment status (repeat until READY)
 snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
 
-# 2. Once status shows "READY", get the service endpoint URL
+# Step 2: Get service endpoint URL (once READY)
 snowsql -q "SHOW ENDPOINTS IN SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE;"
 
-# 3. Test the health endpoint first
-# curl https://your-service-url.snowflakecomputing.app/api/health
+# Step 3: Test health endpoint
+curl https://YOUR-SERVICE-URL.snowflakecomputing.app/api/health
 
-# 4. Access the full application
-# https://your-service-url.snowflakecomputing.app
-
-# 5. View service logs if needed
-snowsql -f manage_service.sql
+# Step 4: Access full application
+# Open: https://YOUR-SERVICE-URL.snowflakecomputing.app
 ```
 
-#### Service Status Interpretation
+**Service Status Guide:**
+- `PENDING` (0-30s): Service creation → Wait
+- `STARTING` (30-120s): Container initializing → Wait  
+- `READY`: ✅ **Service accessible** → Safe to use
+- `FAILED`: Check logs → Troubleshoot
 
-The service status will progress through these states:
+**Common Management Commands:**
+```bash
+# View logs
+snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 50);"
 
-| Status | Description | Action |
-|--------|-------------|---------|
-| `PENDING` | Service is being created | Wait - service is starting up |
-| `STARTING` | Container is initializing | Wait - application is loading |
-| `READY` | ✅ **Service is accessible** | Safe to access endpoints |
-| `FAILED` | Service failed to start | Check logs and troubleshoot |
+# Suspend service (cost savings)
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE SUSPEND;"
 
-**Example of ready service status:**
-```json
-[{"status": "READY"}]
+# Resume service
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE RESUME;"
 ```
-
-#### Accessing Your Service
-
-Once the status shows `READY`:
-
-1. **Get your service URL:**
-   ```bash
-   snowsql -q "SHOW ENDPOINTS IN SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE;"
-   ```
-
-2. **Test health endpoint first:**
-   ```bash
-   curl https://YOUR-SERVICE-URL.snowflakecomputing.app/api/health
-   # Should return: {"status": "OK", "timestamp": "..."}
-   ```
-
-3. **Access the full application:**
-   - Open `https://YOUR-SERVICE-URL.snowflakecomputing.app` in your browser
-   - The React app should load with the Sun Valley contact management interface
-
-4. **If the service doesn't respond:**
-   ```bash
-   # Check detailed logs
-   snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 50);"
-   
-   # Verify service is running
-   snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
-   ```
 
 ### SPCS Service Configuration
 
@@ -243,18 +214,9 @@ The service is deployed with the following configuration:
 - **Auto-suspend**: 1 hour of inactivity
 - **Public Endpoint**: Yes (accessible via Snowflake-generated URL)
 
-### Managing Your SPCS Service
+### Advanced Service Management
 
 ```bash
-# Suspend service (cost optimization)
-snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE SUSPEND;"
-
-# Resume service
-snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE RESUME;"
-
-# View service logs
-snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 10);"
-
 # Update service with new image
 snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE FROM SPECIFICATION \$\$$(cat service_spec.yaml)\$\$;"
 ```
@@ -465,52 +427,18 @@ snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_S
 snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
 ```
 
-**Problem**: Service takes too long to start
+**Problem**: Service issues
 ```bash
-# Normal startup times:
-# - PENDING: 0-30 seconds (service creation)
-# - STARTING: 30-120 seconds (container initialization)
-# - READY: Service is accessible
+# If service stuck in STARTING >5 minutes or not accessible:
+# 1. Check status and logs
+snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
+snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 50);"
 
-# If stuck in STARTING for >5 minutes, check logs:
-snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 100);"
-```
+# 2. Resume if suspended
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE RESUME;"
 
-#### Service Access Issues
-
-**Problem**: Cannot access service endpoint
-```bash
-# Get the correct endpoint URL
+# 3. Check endpoint URL
 snowsql -q "SHOW ENDPOINTS IN SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE;"
-
-# Check if service is running
-snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
-
-# Resume service if suspended
-snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE RESUME;"
-```
-
-**Problem**: Service suspended due to inactivity
-```bash
-# Resume the service
-snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE RESUME;"
-
-# Adjust auto-suspend timeout (optional)
-# Edit create_service.sql and redeploy
-```
-
-#### Cost Management
-
-**Problem**: Unexpected SPCS costs
-```bash
-# Suspend service when not in use
-snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE SUSPEND;"
-
-# Check service status regularly
-snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
-
-# Monitor compute pool usage
-snowsql -q "SHOW COMPUTE POOLS;"
 ```
 
 ### General Debugging Tips
