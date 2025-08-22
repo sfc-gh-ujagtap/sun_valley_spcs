@@ -132,19 +132,38 @@ cd snowflake
 chmod +x buildAndUpload.sh
 
 # Build and push the Docker image to Snowflake
+# This script sets up the image repository, builds the Docker image, and pushes it
 ./buildAndUpload.sh
 ```
 
 #### 3. Create SPCS Service
 
 ```bash
-# Deploy the complete service
+# Create the service (image repository already set up in step 2)
 snowsql -f deploy.sql
 
-# Alternative: Step-by-step deployment
-# snowsql -f setup_image_repo.sql    # Create repository
-# snowsql -f create_service.sql      # Create service
+# Alternative: Create service directly
+# snowsql -f create_service.sql
 ```
+
+### ⚡ Deployment Options
+
+You have two clean deployment workflows:
+
+#### Option 1: Complete Automation (Recommended)
+```bash
+./buildAndUpload.sh  # Sets up repo + builds + uploads
+snowsql -f deploy.sql  # Creates service
+```
+
+#### Option 2: Step-by-Step Control
+```bash
+snowsql -f setup_image_repo.sql  # Setup repository first
+# Build and push manually, then:
+snowsql -f create_service.sql  # Create service only
+```
+
+**Note**: `buildAndUpload.sh` and `deploy.sql` both handle repository setup, so running both creates redundancy but is safe due to `IF NOT EXISTS` clauses.
 
 #### 4. Monitor Deployment
 
@@ -535,8 +554,14 @@ npm install && ./start-servers.sh
 
 ### For Production SPCS Deployment:
 ```bash
+# Step 1: Setup database
 cd scripts && snowsql -f setup_sun_valley_tables.sql
-cd ../snowflake && ./buildAndUpload.sh && snowsql -f deploy.sql
+
+# Step 2: Build and upload image (sets up repo + builds + pushes)
+cd ../snowflake && ./buildAndUpload.sh
+
+# Step 3: Create service
+snowsql -f deploy.sql
 ```
 
 **Built with ❤️ for Sun Valley 2025 Contact Management**
