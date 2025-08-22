@@ -1,0 +1,114 @@
+# React and Express Backend - Cursor AI Rules
+
+## SPCS Packaging Instructions for Similar Apps
+
+When asked to package a React + Express.js app for SPCS, follow these steps:
+
+### Phase 1: Assessment & Code Analysis
+1. **"Analyze the application structure"**
+   - Read `package.json` to understand dependencies and scripts
+   - Read the server files (usually `server.js` or `app.js`) 
+   - Check what port the backend runs on
+   - Identify if there are any database connections or external dependencies
+   - Look at the React app structure in `src/`
+
+2. **"Check the existing Dockerfile"**
+   - If one exists, review it for SPCS compatibility
+   - If none exists, note that we'll need to create one
+
+### Phase 2: Server SPCS Compatibility  
+3. **"Implement dual authentication strategy"**
+   - Add container detection logic (`fs.existsSync("/snowflake/session/token")`)
+   - Configure OAuth authentication for SPCS (reads token from `/snowflake/session/token`)
+   - Maintain existing local authentication (config file or environment variables)
+   - Implement dynamic host binding (0.0.0.0 for containers, localhost for local)
+   - Add environment detection logging
+
+### Phase 3: Docker Configuration
+4. **"Create/update the Dockerfile for SPCS"**
+   - Use multi-stage build (builder stage for React build, production stage for runtime)
+   - Ensure it builds the React app (`npm run build`)
+   - Serve both frontend and backend from the same container
+   - Use non-root user for security
+   - Add health check endpoint
+   - Expose the correct port (usually 3002 or whatever the backend uses)
+
+### Phase 4: SPCS Service Specification
+5. **"Create the SPCS service specification file"**
+   - Create `snowflake/service_spec.yaml`
+   - Define container image path
+   - Set environment variables if needed
+   - Configure health check (readinessProbe)
+   - Set up public endpoint
+   - Specify the correct port
+
+### Phase 5: Database Setup (if applicable)
+6. **"Create database setup scripts"** (if the app uses Snowflake)
+   - Analyze what databases/schemas/tables the app needs
+   - Create setup SQL scripts in `scripts/` directory
+   - Create validation scripts
+   - Create cleanup scripts
+
+### Phase 6: Deployment Infrastructure
+7. **"Create the image repository setup script"**
+   - Create `snowflake/setup_image_repo.sql`
+   - Define database, schema, and image repository
+   - Set appropriate permissions
+
+8. **"Create the service creation script"**
+   - Create `snowflake/create_service.sql`
+   - Define compute pool with appropriate size
+   - Create the SPCS service with the specification
+   - Set auto-suspend policies
+
+9. **"Create the build and upload script"**
+   - Create `snowflake/buildAndUpload.sh`
+   - Build Docker image locally
+   - Tag it appropriately
+   - Push to Snowflake image repository
+
+10. **"Create service management script"**
+    - Create `snowflake/manage_service.sql`
+    - Include commands for start/stop/logs/status
+    - Include service update commands
+
+11. **"Create a complete deployment script"**
+    - Create `snowflake/deploy.sql`
+    - Combine all setup steps in proper order
+    - Include error handling
+
+### Phase 7: Testing & Validation
+12. **"Test the Docker build locally"**
+    - Build the image locally first
+    - Test that it runs and serves the app correctly
+    - Verify health check endpoint works
+
+13. **"Create deployment validation steps"**
+    - Add commands to check service status
+    - Add commands to get service endpoints
+    - Add troubleshooting queries
+
+### Phase 8: Documentation
+14. **"Update documentation"**
+    - Add SPCS deployment section to README
+    - Include prerequisites (Docker, Snowflake CLI, permissions)
+    - Add step-by-step deployment instructions
+    - Add troubleshooting section
+    - Add service management commands
+
+## Deployment Order
+```bash
+# 1. Database setup (if needed)
+cd scripts && snowsql -f setup_database.sql
+
+# 2. SPCS deployment
+cd snowflake
+snowsql -f setup_image_repo.sql
+./buildAndUpload.sh
+snowsql -f deploy.sql
+
+# 3. Verification
+snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('DB.SCHEMA.SERVICE');"
+```
+
+When working on this project or similar SPCS packaging tasks, always refer to this project as a working reference implementation.
