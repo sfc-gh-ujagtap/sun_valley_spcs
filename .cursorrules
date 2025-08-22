@@ -8,9 +8,10 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
 1. **"Analyze the application structure"**
    - Read `package.json` to understand dependencies and scripts
    - Read the server files (usually `server.js` or `app.js`) 
-   - Check what port the backend runs on
+   - **Port should be 3002** for consistency (both local and SPCS)
    - Identify if there are any database connections or external dependencies
    - Look at the React app structure in `src/`
+   - **Expected pattern**: Express.js server serving API routes + static React files from `/build`
 
 2. **"Verify Snowflake CLI configuration alignment"**
    - Ensure `snowsql` and `snow CLI` use the same Snowflake account
@@ -25,29 +26,36 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
 
 ### Phase 2: Server SPCS Compatibility  
 4. **"Implement dual authentication strategy"**
-   - Add container detection logic (`fs.existsSync("/snowflake/session/token")`)
-   - Configure OAuth authentication for SPCS (reads token from `/snowflake/session/token`)
-   - Maintain existing local authentication (config file or environment variables)
-   - Implement dynamic host binding (0.0.0.0 for containers, localhost for local)
-   - Add environment detection logging
+   - Add container detection: `fs.existsSync("/snowflake/session/token")`
+   - **SPCS Path**: Use OAuth with `token: fs.readFileSync('/snowflake/session/token', 'ascii')`
+   - **Local Path**: Read from `~/.snowsql/config` using `connections.default` section
+   - **Include warehouse in both paths** - common bug is missing warehouse in local config
+   - Implement dynamic host binding (0.0.0.0 for SPCS, localhost for local)
+   - Add logging to show which authentication method is being used
+   - **Pattern**: `if (isRunningInSnowflakeContainer()) { /* SPCS OAuth */ } else { /* Local config */ }`
+   - **Add health check endpoint**: `app.get('/api/health', (req, res) => res.json({status: 'OK', timestamp: new Date().toISOString()}))`
 
 ### Phase 3: Docker Configuration
 5. **"Create/update the Dockerfile for SPCS"**
-   - Use multi-stage build (builder stage for React build, production stage for runtime)
-   - Ensure it builds the React app (`npm run build`)
-   - Serve both frontend and backend from the same container
-   - Use non-root user for security
-   - Add health check endpoint
-   - Expose the correct port (usually 3002 or whatever the backend uses)
+   - Use multi-stage build with Node.js Alpine (builder + production stages)
+   - Builder stage: `npm ci`, `npm run build` to create `/build` directory
+   - Production stage: Copy built React files to `/build`, copy `server.js`
+   - **Do NOT use nginx** - Express.js serves both API and static React files
+   - Use non-root user (`nodejs:nodejs`) for security
+   - Add health check using Node.js built-in http module to `/api/health`
+   - Expose port 3002 specifically
+   - Use `dumb-init` for proper signal handling
+   - Set NODE_ENV=production
 
 ### Phase 4: SPCS Service Specification
 6. **"Create the SPCS service specification file"**
    - Create `snowflake/service_spec.yaml`
-   - Define container image path
-   - Set environment variables if needed
-   - Configure health check (readinessProbe)
-   - Set up public endpoint
-   - Specify the correct port
+   - Container image: `/SPCS_APP_DB/IMAGE_SCHEMA/IMAGE_REPO/[app-name]:latest`
+   - Container name should match image name (e.g., `sun-valley-react`)
+   - Set environment: `SERVER_PORT: 3002` 
+   - Configure readinessProbe: `port: 3002, path: /api/health`
+   - Set up public endpoint on port 3002
+   - **Port 3002 is standard** - both readinessProbe and endpoint use same port
 
 ### Phase 5: Database Setup (if applicable)
 7. **"Create database setup scripts"** (if the app uses Snowflake)
@@ -59,7 +67,8 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
 ### Phase 6: Deployment Infrastructure
 8. **"Create the image repository setup script"**
    - Create `snowflake/setup_image_repo.sql`
-   - Define database, schema, and image repository
+   - **Standard pattern**: `SPCS_APP_DB.IMAGE_SCHEMA.IMAGE_REPO`
+   - Use `CREATE IF NOT EXISTS` for idempotency
    - Set appropriate permissions
 
 9. **"Create the service creation script"**
@@ -70,9 +79,13 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
 
 10. **"Create the build and upload script"**
    - Create `snowflake/buildAndUpload.sh`
-   - Build Docker image locally
-   - Tag it appropriately
-   - Push to Snowflake image repository
+   - Run `snow sql -f setup_image_repo.sql` first
+   - Build: `docker build --rm --platform linux/amd64 -t [app-name]:latest .`
+   - Get repo URL: `snow spcs image-repository url SPCS_APP_DB.IMAGE_SCHEMA.IMAGE_REPO`
+   - Tag: `docker tag [app-name]:latest "$REPO_URL/[app-name]:latest"`
+   - Login: `snow spcs image-registry login`
+   - Push: `docker push "$REPO_URL/[app-name]:latest"`
+   - Include error handling for CLI version warnings
 
 11. **"Create service management script"**
     - Create `snowflake/manage_service.sql`
