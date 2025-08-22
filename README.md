@@ -2,37 +2,71 @@
 
 A modern full-stack React TypeScript application for Sun Valley 2025 Contact Management, providing a professional web interface for connecting to Snowflake and managing contact data with real-time updates.
 
-## 🚀 Quick Start
+## 📋 Table of Contents
 
-### Option 1: Use the Startup Script (Recommended)
+- [🚀 Local Development](#-local-development)
+- [☁️ Snowflake SPCS Deployment](#️-snowflake-spcs-deployment)
+- [✨ Features](#-features)
+- [📊 Database Setup](#-database-setup)
+- [🔧 API Reference](#-api-reference)
+- [🛠️ Troubleshooting](#️-troubleshooting)
+
+## 🚀 Local Development
+
+### Prerequisites
+
+Before you begin, ensure you have the following installed and configured:
+
+- **Node.js 18+** and npm
+- **Snowflake Access** with appropriate permissions
+- **Snowflake CLI** (for database setup)
+- **Connection Configuration** in `~/.snowsql/config` or environment variables
+
+### Quick Start
+
+#### Option 1: Automated Setup (Recommended)
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd sun-valley-react
+
+# Install dependencies
+npm install
+
+# Start both backend and frontend servers
 ./start-servers.sh
 ```
 
-### Option 2: Manual Startup
+#### Option 2: Manual Setup
 ```bash
+# Install dependencies
+npm install
+
 # Terminal 1: Start backend server
 node server.js
 
-# Terminal 2: Start frontend server
+# Terminal 2: Start frontend server  
 npm start
 ```
 
-Then open [http://localhost:3000](http://localhost:3000) in your browser.
+The application will be available at [http://localhost:3000](http://localhost:3000).
 
-## ⚙️ Environment Configuration
+### Environment Configuration
 
-The application supports dynamic host configuration through environment variables:
+The application supports flexible configuration through environment variables:
 
-### Backend (server.js)
+#### Backend Configuration (server.js)
 - `HOST`: Server host (default: `localhost`)
 - `PORT`: Backend server port (default: `3002`)
+- `SNOWFLAKE_ACCOUNT`: Your Snowflake account identifier
+- `SNOWFLAKE_USERNAME`: Your Snowflake username
+- `SNOWFLAKE_PASSWORD`: Your Snowflake password (or use config file)
 
-### Frontend (React app)
+#### Frontend Configuration (React app)
 - `REACT_APP_API_URL`: Full API base URL (e.g., `http://myserver:3002`)
 - `REACT_APP_API_PORT`: API port when constructing dynamic URLs (default: `3002`)
 
-### Examples
+#### Example Configurations
 ```bash
 # Development with custom host
 HOST=0.0.0.0 PORT=8080 ./start-servers.sh
@@ -40,9 +74,175 @@ HOST=0.0.0.0 PORT=8080 ./start-servers.sh
 # Production build with custom API URL
 REACT_APP_API_URL=https://api.mycompany.com npm run build
 
-# Docker deployment
-docker run -e HOST=0.0.0.0 -e PORT=3002 -p 3002:3002 sun-valley-app
+# Using environment variables for Snowflake connection
+SNOWFLAKE_ACCOUNT=your-account \
+SNOWFLAKE_USERNAME=your-username \
+SNOWFLAKE_PASSWORD=your-password \
+npm run server
 ```
+
+### Snowflake Configuration
+
+Create or update your `~/.snowsql/config` file:
+
+```ini
+[connections.default]
+accountname = your_account
+username = your_username
+password = your_password
+# OR for private key authentication:
+# private_key_path = ~/.ssh/snowflake_key.p8
+```
+
+## ☁️ Snowflake SPCS Deployment
+
+Deploy your application as a Snowflake Platform Container Service for production use.
+
+### Prerequisites
+
+- **Snowflake CLI** installed and configured
+- **Docker** installed and running
+- **Snowflake Account** with SPCS capabilities
+- **ACCOUNTADMIN** role or appropriate privileges
+
+### Step-by-Step Deployment
+
+#### 1. Setup Database and Tables
+
+First, set up the required database objects:
+
+```bash
+# Navigate to scripts directory
+cd scripts
+
+# Run the database setup script
+snowsql -f setup_sun_valley_tables.sql
+
+# Validate the setup
+snowsql -f validate_setup.sql
+```
+
+#### 2. Build and Deploy Container
+
+```bash
+# Navigate to snowflake directory
+cd snowflake
+
+# Make the build script executable
+chmod +x buildAndUpload.sh
+
+# Build and push the Docker image to Snowflake
+./buildAndUpload.sh
+```
+
+#### 3. Create SPCS Service
+
+```bash
+# Deploy the complete service
+snowsql -f deploy.sql
+
+# Alternative: Step-by-step deployment
+# snowsql -f setup_image_repo.sql    # Create repository
+# snowsql -f create_service.sql      # Create service
+```
+
+#### 4. Monitor Deployment
+
+```bash
+# Check service status
+snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
+
+# Get the service endpoint URL
+snowsql -q "SHOW ENDPOINTS IN SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE;"
+
+# View service logs
+snowsql -f manage_service.sql
+```
+
+### SPCS Service Configuration
+
+The service is deployed with the following configuration:
+
+- **Container Image**: `sun-valley-react:latest`
+- **Port**: `3002`
+- **Health Check**: `/api/health`
+- **Compute Pool**: `SUN_VALLEY_POOL` (CPU_X64_XS)
+- **Auto-suspend**: 1 hour of inactivity
+- **Public Endpoint**: Yes (accessible via Snowflake-generated URL)
+
+### Managing Your SPCS Service
+
+```bash
+# Suspend service (cost optimization)
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE SUSPEND;"
+
+# Resume service
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE RESUME;"
+
+# View service logs
+snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 10);"
+
+# Update service with new image
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE FROM SPECIFICATION \$\$$(cat service_spec.yaml)\$\$;"
+```
+
+## 📊 Database Setup
+
+The application requires specific database tables and data to function properly. The `scripts/` directory contains all necessary SQL scripts for database setup.
+
+### Available Scripts
+
+| Script | Purpose | Use Case |
+|--------|---------|----------|
+| `setup_sun_valley_tables.sql` | **Main Setup** - Complete database with 60+ realistic contacts | Production/Demo |
+| `minimal_setup.sql` | **Quick Start** - Essential tables with 5 test contacts | Development/Testing |
+| `add_more_data.sql` | **Data Expansion** - Adds 30+ additional diverse contacts | Enhanced Demo |
+| `validate_setup.sql` | **Validation** - Verifies database setup and data integrity | Troubleshooting |
+| `sample_analytics.sql` | **Analytics** - Example queries for insights and reporting | Analytics/Reports |
+| `cleanup.sql` | **Cleanup** - Removes all created objects | Reset/Cleanup |
+
+### Quick Database Setup
+
+#### For Development
+```bash
+cd scripts
+snowsql -f minimal_setup.sql
+```
+
+#### For Production/Demo
+```bash
+cd scripts
+snowsql -f setup_sun_valley_tables.sql
+snowsql -f validate_setup.sql
+```
+
+### Database Structure
+
+The application uses the following Snowflake objects:
+
+- **Database**: `SUN_VALLEY`
+- **Schema**: `Y2025`
+- **Main Table**: `SUNVALLEY_2025LIST_HYBRID`
+- **Views**: `SUN_VALLEY_STATUS_SUMMARY`, `SUN_VALLEY_COMPANY_BREAKDOWN`
+
+#### Main Table Schema
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ID` | NUMBER (AUTOINCREMENT) | Primary key, auto-generated |
+| `NAME` | VARCHAR | Contact's full name |
+| `COMPANY` | VARCHAR | Company/organization name |
+| `TITLE` | VARCHAR | Job title/position |
+| `NEW` | VARCHAR | Additional notes/information |
+| `STATUS` | VARCHAR | Contact status (see status values below) |
+
+#### Status Values
+
+- `Confirmed` - Confirmed attendee
+- `Pending` - Pending confirmation  
+- `Investor meeting` - Scheduled for investor meetings
+- `Find at event` - To be contacted at the event
+- `n/a` - Not applicable/not attending
 
 ## ✨ Features
 
@@ -74,87 +274,7 @@ docker run -e HOST=0.0.0.0 -e PORT=3002 -p 3002:3002 sun-valley-app
 - **Connection Configuration** in `~/.snowsql/config` (uses `default` profile)
 - **Database Access** to `sun_valley.y2025` schema
 
-## 🛠️ Installation & Setup
-
-1. **Navigate to the project directory:**
-   ```bash
-   cd sun-valley-react
-   ```
-
-2. **Install dependencies** (if not already installed):
-   ```bash
-   npm install
-   ```
-
-3. **Verify Snowflake configuration** in `~/.snowsql/config`:
-   ```ini
-   [connections.default]
-   accountname = your_account
-   username = your_username
-   password = your_password
-   # OR for private key auth:
-   # private_key_path = ~/.ssh/snowflake_key.p8
-   ```
-
-4. **Start the application:**
-   ```bash
-   ./start-servers.sh
-   ```
-
-## 📁 Project Architecture
-
-```
-sun-valley-react/
-├── 📄 server.js                    # Express backend server with Snowflake integration
-├── 📄 start-servers.sh             # Startup script for both servers
-├── 📄 package.json                 # Dependencies and scripts
-├── 📁 src/
-│   ├── 📄 App.tsx                  # Main React application component
-│   ├── 📄 snowflake.ts             # Snowflake API client functions
-│   ├── 📄 index.tsx                # React app entry point
-│   └── 📄 App.css                  # Application styles
-├── 📁 public/
-│   ├── 📄 index.html               # HTML template
-│   └── 🖼️ favicon.ico              # App icon
-└── 📁 node_modules/                # Dependencies
-```
-
-## 🔧 Available Scripts
-
-### `./start-servers.sh`
-**Recommended**: Starts both backend and frontend servers with proper cleanup
-
-### `npm start`
-Runs the React frontend in development mode at [http://localhost:3000](http://localhost:3000)
-
-### `node server.js`
-Runs the Express backend server at [http://localhost:3002](http://localhost:3002)
-
-### `npm test`
-Launches the test runner in interactive watch mode
-
-### `npm run build`
-Builds the React app for production to the `build` folder
-
-### `npm run eject`
-⚠️ **One-way operation**: Ejects from Create React App (not recommended)
-
-## 🏗️ Application Components
-
-### **Backend Server (server.js)**
-- **Snowflake Connection Management**: Handles authentication and connection pooling
-- **API Endpoints**: RESTful APIs for data operations
-- **Configuration Loading**: Reads `~/.snowsql/config` automatically
-- **Error Handling**: Comprehensive error logging and user feedback
-
-### **Frontend App (App.tsx)**
-- **Connection Interface**: Automatic Snowflake connection on startup
-- **Status Dashboard**: Real-time status distribution and metrics
-- **Data Management**: Interactive table with inline editing capabilities
-- **Filtering System**: Advanced regex-based filtering across all columns
-- **Responsive Design**: Mobile-friendly interface with Material-UI components
-
-## 🔄 API Endpoints
+## 🔧 API Reference
 
 The Express backend provides the following REST API endpoints:
 
@@ -166,6 +286,158 @@ The Express backend provides the following REST API endpoints:
 | `/api/sun-valley/detailed-data` | GET | Get detailed contact data |
 | `/api/sun-valley/update-status` | POST | Update contact status |
 | `/api/table-data/:tableName` | GET | Get data from specific table |
+| `/api/health` | GET | Health check endpoint for monitoring |
+
+## 🛠️ Troubleshooting
+
+### Local Development Issues
+
+#### Common Connection Problems
+
+**Problem**: Application cannot connect to Snowflake
+```bash
+# Solution 1: Verify your connection configuration
+cat ~/.snowsql/config
+
+# Solution 2: Test connection directly with SnowSQL
+snowsql -c default
+
+# Solution 3: Check environment variables
+echo $SNOWFLAKE_ACCOUNT
+echo $SNOWFLAKE_USERNAME
+```
+
+**Problem**: "Port 3002 already in use"
+```bash
+# Find and kill the process using port 3002
+lsof -ti:3002 | xargs kill -9
+
+# Or use a different port
+PORT=3003 ./start-servers.sh
+```
+
+**Problem**: React app shows "Network Error" when calling API
+```bash
+# Check if backend is running
+curl http://localhost:3002/api/health
+
+# Verify CORS configuration in server.js
+# Check REACT_APP_API_URL environment variable
+```
+
+#### Database Issues
+
+**Problem**: "Table does not exist" error
+```bash
+# Run database setup scripts
+cd scripts
+snowsql -f setup_sun_valley_tables.sql
+
+# Validate setup
+snowsql -f validate_setup.sql
+```
+
+**Problem**: "Schema not found" error
+```bash
+# Verify database and schema exist
+snowsql -q "SHOW DATABASES LIKE 'SUN_VALLEY';"
+snowsql -q "SHOW SCHEMAS IN DATABASE SUN_VALLEY;"
+```
+
+### SPCS Deployment Issues
+
+#### Service Deployment Problems
+
+**Problem**: Image build fails
+```bash
+# Check Docker is running
+docker info
+
+# Verify Dockerfile syntax
+docker build -t test-image .
+
+# Check build logs
+./buildAndUpload.sh 2>&1 | tee build.log
+```
+
+**Problem**: Service creation fails
+```bash
+# Check if you have required privileges
+snowsql -q "SHOW GRANTS TO ROLE ACCOUNTADMIN;"
+
+# Verify compute pool exists
+snowsql -q "SHOW COMPUTE POOLS;"
+
+# Check service specification
+snowsql -q "DESCRIBE SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE;"
+```
+
+**Problem**: Service health check fails
+```bash
+# Check service logs
+snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE', 'sun-valley-react', 50);"
+
+# Verify health endpoint
+# Ensure your app responds at /api/health on port 3002
+
+# Check container status
+snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
+```
+
+#### Service Access Issues
+
+**Problem**: Cannot access service endpoint
+```bash
+# Get the correct endpoint URL
+snowsql -q "SHOW ENDPOINTS IN SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE;"
+
+# Check if service is running
+snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
+
+# Resume service if suspended
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE RESUME;"
+```
+
+**Problem**: Service suspended due to inactivity
+```bash
+# Resume the service
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE RESUME;"
+
+# Adjust auto-suspend timeout (optional)
+# Edit create_service.sql and redeploy
+```
+
+#### Cost Management
+
+**Problem**: Unexpected SPCS costs
+```bash
+# Suspend service when not in use
+snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE SUSPEND;"
+
+# Check service status regularly
+snowsql -q "SELECT SYSTEM\$GET_SERVICE_STATUS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE');"
+
+# Monitor compute pool usage
+snowsql -q "SHOW COMPUTE POOLS;"
+```
+
+### General Debugging Tips
+
+1. **Check logs first**: Always examine application and service logs
+2. **Verify connections**: Test Snowflake connectivity independently
+3. **Check permissions**: Ensure proper roles and privileges
+4. **Test incrementally**: Start with minimal setup, then add complexity
+5. **Monitor resources**: Check CPU, memory, and network usage
+
+### Getting Help
+
+- **Logs Location**: 
+  - Local: `snowflake.log` in project root
+  - SPCS: Use `SYSTEM$GET_SERVICE_LOGS` function
+- **Documentation**: 
+  - [Snowflake SPCS Documentation](https://docs.snowflake.com/en/developer-guide/snowpark-container-services/overview)
+  - [React Documentation](https://reactjs.org/)
+- **Community**: Snowflake Community Forum and Stack Overflow
 
 ## 📊 Data Management Features
 
@@ -194,49 +466,54 @@ The Express backend provides the following REST API endpoints:
 - **🔄 Error Handling**: Comprehensive error logging and user-friendly error messages
 - **🚫 SQL Injection Protection**: Parameterized queries prevent injection attacks
 
-## 🆚 Comparison with Streamlit Version
+## 🚀 Available Scripts
 
-| Feature | Streamlit App | React App | Advantage |
-|---------|---------------|-----------|-----------|
-| **Performance** | ⚡ Good | ⚡⚡ Excellent | React: Better responsiveness |
-| **User Experience** | 📱 Desktop-focused | 📱💻 Multi-device | React: Mobile-friendly |
-| **Real-time Updates** | 🔄 Page refresh | 🔄 Live updates | React: No page reloads |
-| **Customization** | 🎨 Limited | 🎨🎨 Extensive | React: Full UI control |
-| **Deployment** | 🚀 Simple | 🚀🚀 Flexible | React: Multiple options |
-| **Data Export** | ❌ Not available | ✅ CSV export | React: Built-in export |
-| **Offline Capability** | ❌ Server-dependent | ✅ Partial offline | React: Better resilience |
+| Script | Command | Description |
+|--------|---------|-------------|
+| **Start Development** | `./start-servers.sh` | Starts both backend and frontend with hot reload |
+| **Frontend Only** | `npm start` | Runs React app at http://localhost:3000 |
+| **Backend Only** | `npm run server` | Runs Express server at http://localhost:3002 |
+| **Build Production** | `npm run build` | Creates optimized production build |
+| **Run Tests** | `npm test` | Launches test runner |
+| **Production Mode** | `npm run production` | Builds and serves production app |
 
-## 🚀 Deployment Options
+## 📁 Project Architecture
 
-### **Development**
-```bash
-./start-servers.sh  # Local development with hot reload
+```
+ujagtap_sun_valley_spcs/
+├── 📄 server.js                    # Express backend with Snowflake integration
+├── 📄 Dockerfile                   # Multi-stage Docker build configuration
+├── 📄 package.json                 # Dependencies and scripts
+├── 📁 src/                         # React frontend source code
+│   ├── 📄 App.tsx                  # Main React application
+│   ├── 📄 snowflake.ts             # Snowflake API client
+│   └── 📄 index.tsx                # React entry point
+├── 📁 scripts/                     # Database setup SQL scripts
+│   ├── 📄 setup_sun_valley_tables.sql
+│   ├── 📄 minimal_setup.sql
+│   └── 📄 validate_setup.sql
+├── 📁 snowflake/                   # SPCS deployment files
+│   ├── 📄 service_spec.yaml        # Service specification
+│   ├── 📄 deploy.sql               # Complete deployment script
+│   └── 📄 buildAndUpload.sh        # Docker build and push script
+└── 📁 public/                      # Static assets
 ```
 
-### **Production**
-```bash
-npm run build       # Build optimized React app
-node server.js      # Run production server
-```
+## 🔒 Security & Best Practices
 
-### **Docker** (Optional)
-```dockerfile
-FROM node:16
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-EXPOSE 3002
-CMD ["node", "server.js"]
-```
+- **🔐 Secure Authentication**: Credentials never stored in browser storage
+- **🛡️ Input Validation**: All user inputs are validated and sanitized
+- **⏱️ Connection Management**: Automatic timeout and cleanup of database connections
+- **🔄 Error Handling**: Comprehensive error logging and user-friendly error messages
+- **🚫 SQL Injection Protection**: Parameterized queries prevent injection attacks
 
-## 📚 Learn More
+## 📚 Additional Resources
 
-- **React Documentation**: [https://reactjs.org/](https://reactjs.org/)
-- **Material-UI Components**: [https://mui.com/](https://mui.com/)
-- **Snowflake Node.js SDK**: [https://docs.snowflake.com/en/user-guide/nodejs-driver](https://docs.snowflake.com/en/user-guide/nodejs-driver)
-- **Express.js Guide**: [https://expressjs.com/](https://expressjs.com/)
+- **[Snowflake SPCS Documentation](https://docs.snowflake.com/en/developer-guide/snowpark-container-services/overview)**: Complete guide to Snowpark Container Services
+- **[React Documentation](https://reactjs.org/)**: Official React documentation
+- **[Material-UI Components](https://mui.com/)**: UI component library
+- **[Snowflake Node.js SDK](https://docs.snowflake.com/en/user-guide/nodejs-driver)**: Node.js driver documentation
+- **[Express.js Guide](https://expressjs.com/)**: Backend framework documentation
 
 ## 🤝 Contributing
 
@@ -248,5 +525,18 @@ CMD ["node", "server.js"]
 6. Submit a pull request
 
 ---
+
+## 🎯 Quick Deployment Summary
+
+### For Local Development:
+```bash
+npm install && ./start-servers.sh
+```
+
+### For Production SPCS Deployment:
+```bash
+cd scripts && snowsql -f setup_sun_valley_tables.sql
+cd ../snowflake && ./buildAndUpload.sh && snowsql -f deploy.sql
+```
 
 **Built with ❤️ for Sun Valley 2025 Contact Management**
