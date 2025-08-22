@@ -135,6 +135,7 @@ async function connectToSnowflakeFromConfig(connectionName = 'default') {
     const username = section.username || section.user;
     const privateKeyPath = section.private_key_path;
     const password = section.password;
+    const warehouse = section.warehousename || section.warehouse || process.env.SNOWFLAKE_WAREHOUSE || 'SUN_VALLEY_WAREHOUSE';
     
     if (!account || !username) {
       throw new Error('Missing required connection parameters (account, username)');
@@ -146,11 +147,13 @@ async function connectToSnowflakeFromConfig(connectionName = 'default') {
     
     console.log(`Account: ${account}`);
     console.log(`Username: ${username}`);
+    console.log(`Warehouse: ${warehouse}`);
     
     // Create connection parameters
     const connectionParams = {
       account: account,
-      username: username
+      username: username,
+      warehouse: warehouse
     };
     
     // Add authentication method
