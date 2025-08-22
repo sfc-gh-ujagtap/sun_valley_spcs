@@ -107,15 +107,17 @@ Deploy your application as a Snowflake Platform Container Service for production
 
 ### Step-by-Step Deployment
 
-#### 1. Setup Database and Tables
+#### 1. Setup Database and Tables (Optional)
 
-First, set up the required database objects:
+**Note**: Skip this step if the `SUN_VALLEY` database and tables already exist.
+
+Set up the required database objects if needed:
 
 ```bash
 # Navigate to scripts directory
 cd scripts
 
-# Run the database setup script
+# Run the database setup script (only if database doesn't exist)
 snowsql -f setup_sun_valley_tables.sql
 
 # Validate the setup
@@ -205,9 +207,17 @@ snowsql -q "CALL SYSTEM\$GET_SERVICE_LOGS('SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_S
 snowsql -q "ALTER SERVICE SPCS_APP_DB.IMAGE_SCHEMA.SUN_VALLEY_SERVICE FROM SPECIFICATION \$\$$(cat service_spec.yaml)\$\$;"
 ```
 
-## 📊 Database Setup
+## 📊 Database Setup (Optional)
 
-The application requires specific database tables and data to function properly. The `scripts/` directory contains all necessary SQL scripts for database setup.
+The application requires specific database tables and data to function properly. **Skip this section if the `SUN_VALLEY` database and tables already exist.**
+
+**Quick Check**: Verify if database exists:
+```bash
+snowsql -q "SHOW DATABASES LIKE 'SUN_VALLEY';"
+snowsql -q "SHOW TABLES IN SUN_VALLEY.Y2025;"
+```
+
+The `scripts/` directory contains all necessary SQL scripts for database setup.
 
 ### Available Scripts
 
@@ -554,7 +564,7 @@ npm install && ./start-servers.sh
 
 ### For Production SPCS Deployment:
 ```bash
-# Step 1: Setup database
+# Step 1: Setup database (optional - skip if SUN_VALLEY database exists)
 cd scripts && snowsql -f setup_sun_valley_tables.sql
 
 # Step 2: Build and upload image (sets up repo + builds + pushes)
