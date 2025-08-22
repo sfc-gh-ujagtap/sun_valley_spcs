@@ -12,12 +12,19 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
    - Identify if there are any database connections or external dependencies
    - Look at the React app structure in `src/`
 
-2. **"Check the existing Dockerfile"**
+2. **"Verify Snowflake CLI configuration alignment"**
+   - Ensure `snowsql` and `snow CLI` use the same Snowflake account
+   - Check `~/.snowsql/config` default connection account
+   - Verify `snow connection list` shows the same account
+   - Confirm both tools have appropriate permissions (ACCOUNTADMIN or sufficient SPCS roles)
+   - Test both connections: `snowsql -q "SELECT CURRENT_ACCOUNT();"` and `snow sql -q "SELECT CURRENT_ACCOUNT();"`
+
+3. **"Check the existing Dockerfile"**
    - If one exists, review it for SPCS compatibility
    - If none exists, note that we'll need to create one
 
 ### Phase 2: Server SPCS Compatibility  
-3. **"Implement dual authentication strategy"**
+4. **"Implement dual authentication strategy"**
    - Add container detection logic (`fs.existsSync("/snowflake/session/token")`)
    - Configure OAuth authentication for SPCS (reads token from `/snowflake/session/token`)
    - Maintain existing local authentication (config file or environment variables)
@@ -25,7 +32,7 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
    - Add environment detection logging
 
 ### Phase 3: Docker Configuration
-4. **"Create/update the Dockerfile for SPCS"**
+5. **"Create/update the Dockerfile for SPCS"**
    - Use multi-stage build (builder stage for React build, production stage for runtime)
    - Ensure it builds the React app (`npm run build`)
    - Serve both frontend and backend from the same container
@@ -34,7 +41,7 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
    - Expose the correct port (usually 3002 or whatever the backend uses)
 
 ### Phase 4: SPCS Service Specification
-5. **"Create the SPCS service specification file"**
+6. **"Create the SPCS service specification file"**
    - Create `snowflake/service_spec.yaml`
    - Define container image path
    - Set environment variables if needed
@@ -43,53 +50,53 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
    - Specify the correct port
 
 ### Phase 5: Database Setup (if applicable)
-6. **"Create database setup scripts"** (if the app uses Snowflake)
+7. **"Create database setup scripts"** (if the app uses Snowflake)
    - Analyze what databases/schemas/tables the app needs
    - Create setup SQL scripts in `scripts/` directory
    - Create validation scripts
    - Create cleanup scripts
 
 ### Phase 6: Deployment Infrastructure
-7. **"Create the image repository setup script"**
+8. **"Create the image repository setup script"**
    - Create `snowflake/setup_image_repo.sql`
    - Define database, schema, and image repository
    - Set appropriate permissions
 
-8. **"Create the service creation script"**
+9. **"Create the service creation script"**
    - Create `snowflake/create_service.sql`
    - Define compute pool with appropriate size
    - Create the SPCS service with the specification
    - Set auto-suspend policies
 
-9. **"Create the build and upload script"**
+10. **"Create the build and upload script"**
    - Create `snowflake/buildAndUpload.sh`
    - Build Docker image locally
    - Tag it appropriately
    - Push to Snowflake image repository
 
-10. **"Create service management script"**
+11. **"Create service management script"**
     - Create `snowflake/manage_service.sql`
     - Include commands for start/stop/logs/status
     - Include service update commands
 
-11. **"Create a complete deployment script"**
+12. **"Create a complete deployment script"**
     - Create `snowflake/deploy.sql`
     - Combine all setup steps in proper order
     - Include error handling
 
 ### Phase 7: Testing & Validation
-12. **"Test the Docker build locally"**
+13. **"Test the Docker build locally"**
     - Build the image locally first
     - Test that it runs and serves the app correctly
     - Verify health check endpoint works
 
-13. **"Create deployment validation steps"**
+14. **"Create deployment validation steps"**
     - Add commands to check service status
     - Add commands to get service endpoints
     - Add troubleshooting queries
 
 ### Phase 8: Documentation
-14. **"Update documentation"**
+15. **"Update documentation"**
     - Add SPCS deployment section to README
     - Include prerequisites (Docker, Snowflake CLI, permissions)
     - Add step-by-step deployment instructions
@@ -98,6 +105,10 @@ When asked to package a React + Express.js app for SPCS, follow these steps:
 
 ## Deployment Order
 ```bash
+# 0. Verify CLI alignment (critical first step)
+snowsql -q "SELECT CURRENT_ACCOUNT();"  # Should match snow CLI account
+snow sql -q "SELECT CURRENT_ACCOUNT();"
+
 # 1. Database setup (if needed)
 cd scripts && snowsql -f setup_database.sql
 
