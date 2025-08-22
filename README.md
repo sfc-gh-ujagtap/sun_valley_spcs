@@ -71,7 +71,7 @@ docker run -e HOST=0.0.0.0 -e PORT=3002 -p 3002:3002 sun-valley-app
 
 - **Node.js 16+** and npm
 - **Snowflake Access** with appropriate permissions
-- **Connection Configuration** in `~/.snowsql/config` (uses `my_conn` profile)
+- **Connection Configuration** in `~/.snowsql/config` (uses `default` profile)
 - **Database Access** to `sun_valley.y2025` schema
 
 ## 🛠️ Installation & Setup
@@ -88,7 +88,7 @@ docker run -e HOST=0.0.0.0 -e PORT=3002 -p 3002:3002 sun-valley-app
 
 3. **Verify Snowflake configuration** in `~/.snowsql/config`:
    ```ini
-   [connections.my_conn]
+   [connections.default]
    accountname = your_account
    username = your_username
    password = your_password

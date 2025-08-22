@@ -61,7 +61,7 @@ export interface TableDataResponse {
 
 export const connectAndListDatabases = async (): Promise<ApiResponse> => {
   try {
-    console.log('Connecting to Snowflake using my_conn configuration...');
+    console.log('Connecting to Snowflake using default configuration...');
     
     const response = await fetch(`${getApiBaseUrl()}/api/connect`);
     const data: ApiResponse = await response.json();

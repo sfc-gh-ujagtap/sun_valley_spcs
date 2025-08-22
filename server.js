@@ -106,8 +106,8 @@ function loadPrivateKey(privateKeyPath) {
   }
 }
 
-// Connect to Snowflake using my_conn configuration
-async function connectToSnowflakeFromConfig(connectionName = 'my_conn') {
+// Connect to Snowflake using default configuration
+async function connectToSnowflakeFromConfig(connectionName = 'default') {
   try {
     console.log(`Connecting to Snowflake using ${connectionName}...`);
     
@@ -190,7 +190,7 @@ async function connectToSnowflakeFromConfig(connectionName = 'my_conn') {
 }
 
 
-async function connectToSnowflake(connectionName = 'my_conn') {
+async function connectToSnowflake(connectionName = 'default') {
   if (isRunningInSnowflakeContainer()) {
     return await connectToSnowflakeFromEnv();
   } else {
@@ -218,7 +218,7 @@ async function executeQuery(connection, query) {
 app.get('/api/connect', async (req, res) => {
   try {
     console.log('API: Connecting to Snowflake...');
-    const connection = await connectToSnowflake('my_conn');
+    const connection = await connectToSnowflake('default');
     
     console.log('API: Listing databases using SELECT query...');
     // Use SELECT from INFORMATION_SCHEMA with fully qualified name
@@ -255,7 +255,7 @@ app.get('/api/connect', async (req, res) => {
 app.get('/api/sun-valley/tables', async (req, res) => {
   try {
     console.log('API: Exploring Sun Valley database...');
-    const connection = await connectToSnowflake('my_conn');
+    const connection = await connectToSnowflake('default');
     
     console.log('API: Listing tables in sun_valley.y2025 schema...');
     const query = `
@@ -300,7 +300,7 @@ app.get('/api/sun-valley/table/:tableName', async (req, res) => {
     const limit = req.query.limit || 10;
     
     console.log(`API: Getting preview of table ${tableName}...`);
-    const connection = await connectToSnowflake('my_conn');
+    const connection = await connectToSnowflake('default');
     
     const query = `SELECT * FROM SUN_VALLEY.Y2025.${tableName} LIMIT ${limit}`;
     const rows = await executeQuery(connection, query);
@@ -340,7 +340,7 @@ app.get('/api/sun-valley/table/:tableName', async (req, res) => {
 app.get('/api/sun-valley/status-summary', async (req, res) => {
   try {
     console.log('API: Getting Sun Valley status summary...');
-    const connection = await connectToSnowflake('my_conn');
+    const connection = await connectToSnowflake('default');
     
     const query = `
       SELECT 
@@ -376,7 +376,7 @@ app.get('/api/sun-valley/status-summary', async (req, res) => {
 app.get('/api/sun-valley/detailed-data', async (req, res) => {
   try {
     console.log('API: Getting detailed Sun Valley data...');
-    const connection = await connectToSnowflake('my_conn');
+    const connection = await connectToSnowflake('default');
     
     const query = `
       SELECT * FROM SUN_VALLEY.Y2025.SUNVALLEY_2025LIST_HYBRID
@@ -410,7 +410,7 @@ app.post('/api/sun-valley/update-status', async (req, res) => {
     const { recordId, newStatus, personName } = req.body;
     
     console.log(`API: Updating status for ${personName} (ID: ${recordId}) to '${newStatus}'`);
-    const connection = await connectToSnowflake('my_conn');
+    const connection = await connectToSnowflake('default');
     
     const query = `
       UPDATE SUN_VALLEY.Y2025.SUNVALLEY_2025LIST_HYBRID
